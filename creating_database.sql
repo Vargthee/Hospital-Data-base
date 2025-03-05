@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS `hospitaldb`.`doctors` (
   PRIMARY KEY (`DoctorID`),
   INDEX `idx_DoctorID` (`DoctorID` ASC) VISIBLE
 )
-ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -130,6 +129,27 @@ CREATE TABLE IF NOT EXISTS `hospitaldb`.`ServiceDr` (
 )
 ENGINE = InnoDB;
 
+CREATE TABLE IF NOT EXISTS `hospitaldb`.`appointments` (
+  `AppointmentID` INT NOT NULL AUTO_INCREMENT,
+  `PatientID` INT NOT NULL,
+  `DoctorID` INT NOT NULL,
+  `AppointmentDate` DATE NOT NULL,
+  PRIMARY KEY (`AppointmentID`),
+  INDEX `PatientID_idx` (`PatientID` ASC) VISIBLE,
+  INDEX `DoctorID_idx` (`DoctorID` ASC) VISIBLE,
+  CONSTRAINT `appointments_ibfk_1`
+    FOREIGN KEY (`PatientID`)
+    REFERENCES `hospitaldb`.`patients` (`PatientID`),
+  CONSTRAINT `appointments_ibfk_2`
+    FOREIGN KEY (`DoctorID`)
+    REFERENCES `hospitaldb`.`doctors` (`DoctorID`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION
+)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
+
 DELIMITER $$
 CREATE TRIGGER surgeries_check_date
 BEFORE INSERT ON hospitaldb.surgeries
@@ -144,6 +164,25 @@ BEGIN
     IF NEW.SurgeryDate < admission OR NEW.SurgeryDate > discharge THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'SurgeryDate must be between AdmissionDate and DischargeDate.';
+    END IF;
+END;
+$$
+DELIMITER ;
+
+DELIMITER $$
+CREATE TRIGGER appointments_check_date
+BEFORE INSERT ON hospitaldb.appointments
+FOR EACH ROW
+BEGIN
+    DECLARE admission DATE;
+    DECLARE discharge DATE;
+    SELECT AdmissionDate, DischargeDate
+    INTO admission, discharge
+    FROM hospitaldb.patients
+    WHERE PatientID = NEW.PatientID;
+    IF NEW.AppointmentDate < admission OR NEW.AppointmentDate > discharge THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'AppointmentDate must be between AdmissionDate and DischargeDate.';
     END IF;
 END;
 $$
